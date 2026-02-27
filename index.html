@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NearGrid — Real-Time Community Alert Network</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="neargrid">
+
+  <!-- ===== HEADER ===== -->
+  <header class="ng-header">
+    <div class="ng-logo">
+      <span class="logo-icon">&#9670;</span>
+      NearGrid
+      <span class="logo-badge">BETA</span>
+    </div>
+    <nav class="ng-nav">
+      <a href="#">Dashboard</a>
+      <a href="#" class="active">Live Map</a>
+      <a href="#">Communities</a>
+      <a href="#">Analytics</a>
+    </nav>
+    <div class="ng-header-right">
+      <div class="ng-sync-pill" id="syncStatus">
+        <span class="sync-dot"></span>
+        <span id="syncText">Connecting...</span>
+      </div>
+      <div class="ng-online-pill">
+        <span class="online-dot"></span>
+        <span id="onlineCount">0</span> online
+      </div>
+      <button class="ng-login-btn" id="authBtn" onclick="handleAuth()">Sign In</button>
+      <div class="ng-avatar" id="userAvatar" style="display:none"></div>
+    </div>
+  </header>
+
+  <!-- ===== STATS BAR ===== -->
+  <div class="ng-stats-bar">
+    <div class="stat-item">
+      <span class="stat-value" id="statAlerts">0</span>
+      <span class="stat-label">Active Alerts</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" id="statNodes">0</span>
+      <span class="stat-label">Nodes Online</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" id="statRadius">2 km</span>
+      <span class="stat-label">Active Radius</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" id="statCity">Rajasthan</span>
+      <span class="stat-label">Your Zone</span>
+    </div>
+    <div class="stat-item ng-header-right ml-auto">
+      <div class="ng-grid-pulse">
+        <span>GRID SYNC</span>
+        <div class="pulse-bars">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="ng-main">
+
+    <!-- MAP SECTION -->
+    <section class="ng-map-section">
+
+      <!-- Filters Panel -->
+      <aside class="ng-filters" id="filterPanel">
+        <div class="filter-header">
+          <span class="filter-icon">&#9783;</span>
+          <h3>Filters</h3>
+          <button class="filter-collapse" onclick="toggleFilters()">&#8722;</button>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">ALERT RADIUS</label>
+          <div class="chip-group" id="radiusChips">
+            <button class="chip" onclick="setRadius(1)">1 km</button>
+            <button class="chip active" onclick="setRadius(2)">2 km</button>
+            <button class="chip" onclick="setRadius(3)">3 km</button>
+            <button class="chip" onclick="setRadius(5)">5 km</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">CATEGORIES</label>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Safety"> 
+              <span class="cat-dot" style="background:#ef4444"></span> Safety
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Traffic"> 
+              <span class="cat-dot" style="background:#f59e0b"></span> Traffic
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Utilities"> 
+              <span class="cat-dot" style="background:#3b82f6"></span> Utilities
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Health"> 
+              <span class="cat-dot" style="background:#22d3ee"></span> Health
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Community"> 
+              <span class="cat-dot" style="background:#a78bfa"></span> Community
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" checked onchange="updateCatFilter()" data-cat="Fire"> 
+              <span class="cat-dot" style="background:#fb923c"></span> Fire
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">SEVERITY</label>
+          <div class="chip-group">
+            <button class="chip active small">All</button>
+            <button class="chip small">Critical</button>
+            <button class="chip small">Medium</button>
+            <button class="chip small">Low</button>
+          </div>
+        </div>
+
+        <div class="filter-legend">
+          <div class="legend-item"><span class="legend-pulse red"></span> You</div>
+          <div class="legend-item"><span class="legend-pulse cyan"></span> Nodes</div>
+          <div class="legend-item"><span class="legend-line"></span> Grid Link</div>
+        </div>
+      </aside>
+
+      <!-- Map -->
+      <div id="map" class="ng-map"></div>
+
+      <!-- Map overlay label -->
+      <div class="ng-overlay-label">
+        <span class="ol-dot"></span>
+        Smart City Safety Grid &nbsp;&bull;&nbsp; Real-time Civic Infrastructure &nbsp;&bull;&nbsp; NearGrid v1.0
+      </div>
+
+      <!-- Quick Report FAB -->
+      <button class="ng-fab" id="reportFab" onclick="openReportModal()">
+        <span class="fab-icon">+</span>
+        <span class="fab-text">Report Alert</span>
+      </button>
+
+      <!-- Locate Me -->
+      <button class="ng-locate-btn" onclick="locateMe()" title="Center on my location">
+        &#8982;
+      </button>
+
+    </section>
+
+    <!-- ALERT FEED SECTION -->
+    <aside class="ng-feed-section">
+      <header class="ng-feed-header">
+        <div>
+          <h2>Live Alerts</h2>
+          <p class="feed-subtitle">Your <span id="feedRadius">2</span> km zone</p>
+        </div>
+        <div class="ng-signal">
+          <div class="signal-bar b1"></div>
+          <div class="signal-bar b2"></div>
+          <div class="signal-bar b3"></div>
+        </div>
+      </header>
+
+      <!-- Search -->
+      <div class="feed-search">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" placeholder="Search alerts..." id="alertSearch" oninput="filterFeed()" />
+      </div>
+
+      <!-- Alert feed -->
+      <div class="ng-alert-feed" id="alertFeed">
+        <div class="ng-empty-state" id="emptyState">
+          <div class="empty-icon">&#128246;</div>
+          <p>No alerts in your zone</p>
+          <small>Be the first to report!</small>
+        </div>
+      </div>
+
+      <!-- Node map mini -->
+      <div class="ng-node-bar">
+        <div class="node-bar-title">NEARBY NODES</div>
+        <div class="node-avatars" id="nodeAvatars"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===== REPORT MODAL ===== -->
+  <div class="ng-modal-overlay" id="reportModal" onclick="closeModalOutside(event)">
+    <div class="ng-modal">
+      <div class="modal-header">
+        <h3>&#9888; New Alert Report</h3>
+        <button class="modal-close" onclick="closeReportModal()">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Alert Title</label>
+          <input type="text" id="alertTitle" placeholder="Brief description of the incident..." maxlength="80" />
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <div class="cat-select" id="catSelect">
+            <button class="cat-btn active" data-cat="Safety" onclick="selectCat(this)">&#128274; Safety</button>
+            <button class="cat-btn" data-cat="Traffic" onclick="selectCat(this)">&#128664; Traffic</button>
+            <button class="cat-btn" data-cat="Utilities" onclick="selectCat(this)">&#9889; Utilities</button>
+            <button class="cat-btn" data-cat="Health" onclick="selectCat(this)">&#10084; Health</button>
+            <button class="cat-btn" data-cat="Community" onclick="selectCat(this)">&#128101; Community</button>
+            <button class="cat-btn" data-cat="Fire" onclick="selectCat(this)">&#128293; Fire</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Severity</label>
+          <div class="sev-select">
+            <button class="sev-btn critical" onclick="selectSev(this)" data-sev="Critical">Critical</button>
+            <button class="sev-btn medium active" onclick="selectSev(this)" data-sev="Medium">Medium</button>
+            <button class="sev-btn low" onclick="selectSev(this)" data-sev="Low">Low</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description <span class="optional">(optional)</span></label>
+          <textarea id="alertDesc" placeholder="What is happening? Any additional details..." rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <div class="ng-location-row" id="locationRow">
+            <span class="loc-icon">&#128205;</span>
+            <span id="locationStatus">Detecting your location...</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeReportModal()">Cancel</button>
+          <button class="btn-submit" id="submitBtn" onclick="submitAlert()">
+            <span>&#9889;</span> Send Alert
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
+  <div class="ng-toast-container" id="toastContainer"></div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
