@@ -426,7 +426,7 @@ body.neargrid {
 
 /* Leaflet Dark Theme Adjustments */
 .leaflet-container { background: #0b0e14 !important; }
-.leaflet-tile-pane { filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7); }
+.leaflet-tile-pane { filter: brightness(0.7) saturate(0.8) hue-rotate(170deg) contrast(1.1); }
 .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important; }
 .leaflet-control-zoom-in, .leaflet-control-zoom-out { background: #1e293b !important; color: white !important; border: 1px solid var(--border-dim) !important; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0f172a !important; color: white !important; border: 1px solid var(--border-dim); }
