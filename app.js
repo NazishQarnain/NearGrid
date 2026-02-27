@@ -29,6 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function initMap() {
   map = L.map('map', { zoomControl: false, attributionControl: false }).setView([userLocation.lat, userLocation.lng], 14);
+  listenToNews();
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   const userIcon = L.divIcon({
@@ -218,4 +219,90 @@ function showToast(msg, type='info') {
   t.innerText = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 3000);
+
+// ===== NEWS FUNCTIONALITY =====
+let news = [];
+
+// Listen to news collection
+function listenToNews() {
+  try {
+    const q = query(collection(db, "news"));
+    onSnapshot(q, (snapshot) => {
+      news = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      news.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      renderNews();
+    }, (err) => {
+      console.error('News fetch error:', err);
+    });
+  } catch(e) {
+    console.error('News init error:', e);
+  }
+}
+
+// Submit news
+window.submitNews = async () => {
+  const title = document.getElementById('newsTitle')?.value.trim() || document.getElementById('alertTitle').value.trim();
+  if (!title) { showToast('Please enter news title', 'error'); return; }
+  
+  const reporterName = document.getElementById('reporterName')?.value.trim() || 'Anonymous';
+  const imageUrl = document.getElementById('newsImage')?.value.trim() || '';
+  
+  try {
+    await addDoc(collection(db, "news"), {
+      title,
+      description: document.getElementById('alertDesc')?.value.trim() || '',
+      imageUrl,
+      reporterName,
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      createdAt: serverTimestamp(),
+      type: 'news'
+    });
+    showToast('News posted successfully!', 'success');
+    window.closeReportModal();
+    document.getElementById('alertTitle').value = '';
+    document.getElementById('alertDesc').value = '';
+  } catch(e) {
+    showToast('Error posting news: ' + e.message, 'error');
+  }
+};
+
+// Render news in feed
+function renderNews() {
+  const newsFeed = document.getElementById('newsFeed');
+  if (!newsFeed) return;
+  
+  const searchVal = (document.getElementById('alertSearch')?.value || '').toLowerCase();
+  const filtered = news.filter(n => {
+    const dist = getDistance(userLocation.lat, userLocation.lng, n.lat || userLocation.lat, n.lng || userLocation.lng);
+    const inRadius = dist <= currentRadius;
+    const matchesSearch = !searchVal || (n.title || '').toLowerCase().includes(searchVal) || (n.reporterName || '').toLowerCase().includes(searchVal);
+    return inRadius && matchesSearch;
+  });
+  
+  if (filtered.length === 0) {
+    newsFeed.innerHTML = '<div class="ng-empty-state"><div class="empty-icon">📰</div><p>No news in your zone</p><small>Be the first to report!</small></div>';
+  } else {
+    newsFeed.innerHTML = '';
+    filtered.forEach(n => {
+      const card = document.createElement('div');
+      card.className = 'ng-news-card';
+      const timeStr = n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Just now';
+      card.innerHTML = `
+        <div class="news-card-header">
+          <span class="news-badge">📰 NEWS</span>
+          <span class="news-time">${timeStr}</span>
+        </div>
+        ${n.imageUrl ? `<img src="${n.imageUrl}" class="news-image" alt="News image"/>` : ''}
+        <div class="news-title">${n.title}</div>
+        ${n.description ? `<div class="news-desc">${n.description}</div>` : ''}
+        <div class="news-footer">
+          <span>📍 ${(getDistance(userLocation.lat, userLocation.lng, n.lat || userLocation.lat, n.lng || userLocation.lng)).toFixed(1)} km away</span>
+          <span>By ${n.reporterName || 'Anonymous'}</span>
+        </div>
+      `;
+      newsFeed.appendChild(card);
+    });
+  }
+}
 }
